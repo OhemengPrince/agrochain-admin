@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   Bar,
   BarChart,
@@ -17,8 +18,23 @@ import {
 import Layout from '../components/Layout';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
+import AnimatedRow from '../components/AnimatedRow';
+import { SkeletonTableRows, SkeletonChart } from '../components/Skeleton';
 import { getUsers, getTransactions, getBookings, getMarketplaceListings } from '../api/admin';
 import { extractArray, formatGHS, formatDate, itemDate } from '../utils/format';
+
+const ChartCard = ({ title, span, children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 16 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, margin: '-40px' }}
+    transition={{ duration: 0.35 }}
+    className={`rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ${span || ''}`}
+  >
+    <h2 className="mb-4 text-sm font-bold text-gray-900">{title}</h2>
+    {children}
+  </motion.div>
+);
 
 const ROLE_LABELS = {
   FARMER: 'Farmers',
@@ -152,8 +168,6 @@ export default function Dashboard() {
     [transactions]
   );
 
-  const v = (val) => (loading ? '—' : val);
-
   return (
     <Layout title="Dashboard">
       {error && (
@@ -161,78 +175,110 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4">
-        <StatCard label="Total Users" value={v(users.length.toLocaleString())} accent="#1A6B2E" icon={<UsersGlyph />} />
-        <StatCard label="Farmers" value={v((roleCounts.FARMER || 0).toLocaleString())} accent="#2E8B45" icon={<LeafGlyph />} />
-        <StatCard label="Owners" value={v((roleCounts.EQUIPMENT_OWNER || 0).toLocaleString())} accent="#1565C0" icon={<TractorGlyph />} />
-        <StatCard label="Buyers" value={v((roleCounts.BUYER || 0).toLocaleString())} accent="#FF8F00" icon={<CartGlyph />} />
-        <StatCard label="Total Revenue (GHS)" value={v(formatGHS(revenue, { decimals: 0 }))} accent="#124D21" icon={<CoinGlyph />} />
-        <StatCard label="Total Transactions" value={v(transactions.length.toLocaleString())} accent="#7B1FA2" icon={<ReceiptGlyph />} />
-        <StatCard label="Active Listings" value={v(activeListingsCount.toLocaleString())} accent="#0E7490" icon={<TagGlyph />} />
-        <StatCard label="Total Bookings" value={v(bookings.length.toLocaleString())} accent="#B45309" icon={<CalendarGlyph />} />
+        <StatCard loading={loading} label="Total Users" value={users.length} gradient="blue" icon={<UsersGlyph />} />
+        <StatCard loading={loading} label="Farmers" value={roleCounts.FARMER || 0} gradient="green" icon={<LeafGlyph />} />
+        <StatCard loading={loading} label="Owners" value={roleCounts.EQUIPMENT_OWNER || 0} gradient="orange" icon={<TractorGlyph />} />
+        <StatCard loading={loading} label="Buyers" value={roleCounts.BUYER || 0} gradient="purple" icon={<CartGlyph />} />
+        <StatCard
+          loading={loading}
+          label="Total Revenue (GHS)"
+          value={revenue}
+          gradient="gold"
+          icon={<CoinGlyph />}
+          formatter={(v) => formatGHS(v, { decimals: 0 })}
+        />
+        <StatCard loading={loading} label="Total Transactions" value={transactions.length} gradient="teal" icon={<ReceiptGlyph />} />
+        <StatCard loading={loading} label="Active Listings" value={activeListingsCount} gradient="cyan" icon={<TagGlyph />} />
+        <StatCard loading={loading} label="Total Bookings" value={bookings.length} gradient="rose" icon={<CalendarGlyph />} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm xl:col-span-2">
-          <h2 className="mb-4 text-sm font-bold text-gray-900">Revenue by Month</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={revenueByMonth} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="#F1F5F9" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  formatter={(value) => formatGHS(value, { decimals: 0 })}
-                  contentStyle={{ borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13 }}
-                />
-                <Line type="monotone" dataKey="revenue" stroke="#1A6B2E" strokeWidth={2.5} dot={{ r: 3, fill: '#1A6B2E' }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-gray-900">Bookings by Status</h2>
-          <div className="h-64">
-            {bookingStatusData.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-sm text-gray-400">No bookings yet.</div>
-            ) : (
+        <ChartCard title="Revenue by Month" span="xl:col-span-2">
+          {loading ? (
+            <SkeletonChart />
+          ) : (
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={bookingStatusData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
-                    {bookingStatusData.map((entry) => (
-                      <Cell key={entry.status} fill={BOOKING_STATUS_COLORS[entry.status]} />
-                    ))}
-                  </Pie>
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-                  <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13 }} />
-                </PieChart>
+                <LineChart data={revenueByMonth} margin={{ top: 4, right: 8, left: -12, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke="#F1F5F9" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    formatter={(value) => formatGHS(value, { decimals: 0 })}
+                    contentStyle={{ borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#1A6B2E"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: '#1A6B2E' }}
+                    isAnimationActive
+                    animationDuration={900}
+                  />
+                </LineChart>
               </ResponsiveContainer>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </ChartCard>
+
+        <ChartCard title="Bookings by Status">
+          {loading ? (
+            <SkeletonChart />
+          ) : (
+            <div className="h-64">
+              {bookingStatusData.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm text-gray-400">No bookings yet.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={bookingStatusData}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      isAnimationActive
+                      animationDuration={900}
+                    >
+                      {bookingStatusData.map((entry) => (
+                        <Cell key={entry.status} fill={BOOKING_STATUS_COLORS[entry.status]} />
+                      ))}
+                    </Pie>
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                    <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          )}
+        </ChartCard>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-5">
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm xl:col-span-2">
-          <h2 className="mb-4 text-sm font-bold text-gray-900">Users by Role</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={roleChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid vertical={false} stroke="#F1F5F9" />
-                <XAxis dataKey="role" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  cursor={{ fill: '#F0FDF4' }}
-                  contentStyle={{ borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13 }}
-                />
-                <Bar dataKey="count" fill="#1A6B2E" radius={[6, 6, 0, 0]} maxBarSize={48} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <ChartCard title="Users by Role" span="xl:col-span-2">
+          {loading ? (
+            <SkeletonChart />
+          ) : (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={roleChartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke="#F1F5F9" />
+                  <XAxis dataKey="role" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    cursor={{ fill: '#F0FDF4' }}
+                    contentStyle={{ borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13 }}
+                  />
+                  <Bar dataKey="count" fill="#1A6B2E" radius={[6, 6, 0, 0]} maxBarSize={48} isAnimationActive animationDuration={900} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </ChartCard>
 
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm xl:col-span-3">
-          <h2 className="mb-4 text-sm font-bold text-gray-900">Recent Registrations</h2>
+        <ChartCard title="Recent Registrations" span="xl:col-span-3">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
@@ -244,16 +290,14 @@ export default function Dashboard() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
-                  <tr>
-                    <td colSpan={3} className="py-6 text-center text-gray-400">Loading…</td>
-                  </tr>
+                  <SkeletonTableRows columns={3} rows={5} />
                 ) : recentUsers.length === 0 ? (
                   <tr>
                     <td colSpan={3} className="py-6 text-center text-gray-400">No users yet.</td>
                   </tr>
                 ) : (
-                  recentUsers.map((u) => (
-                    <tr key={u.id}>
+                  recentUsers.map((u, i) => (
+                    <AnimatedRow key={u.id} index={i}>
                       <td className="py-3 pr-4">
                         <p className="font-medium text-gray-900">{u.fullName || u.name || '—'}</p>
                         <p className="text-xs text-gray-400">{u.email}</p>
@@ -264,17 +308,16 @@ export default function Dashboard() {
                         </span>
                       </td>
                       <td className="py-3 text-gray-500">{formatDate(u.createdAt)}</td>
-                    </tr>
+                    </AnimatedRow>
                   ))
                 )}
               </tbody>
             </table>
           </div>
-        </div>
+        </ChartCard>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-sm font-bold text-gray-900">Recent Transactions</h2>
+      <ChartCard title="Recent Transactions" span="mt-6">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
@@ -287,29 +330,27 @@ export default function Dashboard() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr>
-                  <td colSpan={4} className="py-6 text-center text-gray-400">Loading…</td>
-                </tr>
+                <SkeletonTableRows columns={4} rows={5} />
               ) : recentTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="py-6 text-center text-gray-400">No transactions yet.</td>
                 </tr>
               ) : (
-                recentTransactions.map((t) => (
-                  <tr key={t.id}>
+                recentTransactions.map((t, i) => (
+                  <AnimatedRow key={t.id} index={i}>
                     <td className="py-3 pr-4 font-medium text-gray-800">{t.type || '—'}</td>
                     <td className="py-3 pr-4 font-semibold text-gray-900">{formatGHS(t.amount)}</td>
                     <td className="py-3 pr-4">
                       <StatusBadge status={t.status} />
                     </td>
                     <td className="py-3 text-gray-500">{formatDate(itemDate(t))}</td>
-                  </tr>
+                  </AnimatedRow>
                 ))
               )}
             </tbody>
           </table>
         </div>
-      </div>
+      </ChartCard>
     </Layout>
   );
 }

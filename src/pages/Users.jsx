@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import StatusBadge from '../components/StatusBadge';
 import ConfirmDialog from '../components/ConfirmDialog';
 import UserProfileModal from '../components/UserProfileModal';
+import AnimatedRow from '../components/AnimatedRow';
+import { SkeletonTableRows } from '../components/Skeleton';
 import { SearchIcon } from '../components/icons';
 import { getUsers, suspendUser, activateUser, deleteUser } from '../api/admin';
 import { extractArray, formatDate } from '../utils/format';
@@ -30,7 +33,6 @@ export default function Users() {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [actioningId, setActioningId] = useState(null);
-  const [actionError, setActionError] = useState('');
   const [profileUser, setProfileUser] = useState(null);
   const [confirmTarget, setConfirmTarget] = useState(null); // { user, action: 'suspend' | 'delete' }
 
@@ -41,7 +43,9 @@ export default function Users() {
       const { data } = await getUsers();
       setUsers(extractArray(data));
     } catch {
-      setError('Could not load users. Please try again.');
+      const msg = 'Could not load users. Please try again.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -75,8 +79,8 @@ export default function Users() {
   const handleToggleSuspend = async (user) => {
     const id = user.id;
     const action = user.suspended ? 'activate' : 'suspend';
+    const name = user.fullName || user.email;
     setActioningId(id);
-    setActionError('');
     try {
       if (action === 'suspend') {
         await suspendUser(id);
@@ -84,8 +88,9 @@ export default function Users() {
         await activateUser(id);
       }
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, suspended: !u.suspended } : u)));
+      toast.success(action === 'suspend' ? `${name} was suspended.` : `${name} was activated.`);
     } catch {
-      setActionError(`Could not ${action} this user. Please try again.`);
+      toast.error(`Could not ${action} this user. Please try again.`);
     } finally {
       setActioningId(null);
       setConfirmTarget(null);
@@ -93,13 +98,14 @@ export default function Users() {
   };
 
   const handleDelete = async (user) => {
+    const name = user.fullName || user.email;
     setActioningId(user.id);
-    setActionError('');
     try {
       await deleteUser(user.id);
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      toast.success(`${name} was deleted.`);
     } catch {
-      setActionError('Could not delete this user. Please try again.');
+      toast.error('Could not delete this user. Please try again.');
     } finally {
       setActioningId(null);
       setConfirmTarget(null);
@@ -163,11 +169,6 @@ export default function Users() {
       {error && (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
       )}
-      {actionError && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {actionError}
-        </div>
-      )}
 
       <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
         <div className="overflow-x-auto">
@@ -186,11 +187,7 @@ export default function Users() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
-                    Loading users…
-                  </td>
-                </tr>
+                <SkeletonTableRows columns={8} />
               ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
@@ -198,8 +195,8 @@ export default function Users() {
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-gray-50/60">
+                filteredUsers.map((u, i) => (
+                  <AnimatedRow key={u.id} index={i} className="transition-colors duration-150 hover:bg-gray-50/80">
                     <td className="px-5 py-3.5 font-medium text-gray-900">{u.fullName || u.name || '—'}</td>
                     <td className="px-5 py-3.5 text-gray-600">{u.email}</td>
                     <td className="px-5 py-3.5">
@@ -241,7 +238,7 @@ export default function Users() {
                         </button>
                       </div>
                     </td>
-                  </tr>
+                  </AnimatedRow>
                 ))
               )}
             </tbody>

@@ -91,3 +91,36 @@ export function SearchIcon(props) {
     </svg>
   );
 }
+
+export function BellIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+export function MenuIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="M3.5 6h17M3.5 12h17M3.5 18h17" />
+    </svg>
+  );
+}
+
+export function ChevronsLeftIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" />
+    </svg>
+  );
+}
+
+export function ChevronDownIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}

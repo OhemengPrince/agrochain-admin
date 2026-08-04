@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
+import AnimatedRow from '../components/AnimatedRow';
+import { SkeletonTableRows } from '../components/Skeleton';
 import { getTransactions } from '../api/admin';
 import { extractArray, formatGHS, formatDateTime, itemDate } from '../utils/format';
 
@@ -25,7 +28,9 @@ export default function Transactions() {
         const { data } = await getTransactions();
         setTransactions(extractArray(data));
       } catch {
-        setError('Could not load transactions. Please try again.');
+        const msg = 'Could not load transactions. Please try again.';
+        setError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
@@ -70,9 +75,21 @@ export default function Transactions() {
   return (
     <Layout title="Transactions">
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Total Revenue (Completed)" value={loading ? '—' : formatGHS(totalRevenue)} accent="#1A6B2E" />
-        <StatCard label="Total Fees Collected" value={loading ? '—' : formatGHS(totalFees)} accent="#7B1FA2" />
-        <StatCard label="Transactions Shown" value={loading ? '—' : filteredTransactions.length.toLocaleString()} accent="#0E7490" />
+        <StatCard
+          loading={loading}
+          label="Total Revenue (Completed)"
+          value={totalRevenue}
+          gradient="green"
+          formatter={(v) => formatGHS(v)}
+        />
+        <StatCard
+          loading={loading}
+          label="Total Fees Collected"
+          value={totalFees}
+          gradient="purple"
+          formatter={(v) => formatGHS(v)}
+        />
+        <StatCard loading={loading} label="Transactions Shown" value={filteredTransactions.length} gradient="cyan" />
       </div>
 
       <div className="mb-5 flex flex-wrap items-end gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -154,11 +171,7 @@ export default function Transactions() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
-                    Loading transactions…
-                  </td>
-                </tr>
+                <SkeletonTableRows columns={7} />
               ) : filteredTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
@@ -166,8 +179,8 @@ export default function Transactions() {
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50/60">
+                filteredTransactions.map((t, i) => (
+                  <AnimatedRow key={t.id} index={i} className="transition-colors duration-150 hover:bg-gray-50/80">
                     <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{t.id}</td>
                     <td className="px-5 py-3.5 font-medium text-gray-900">{t.type || '—'}</td>
                     <td className="px-5 py-3.5 font-semibold text-gray-900">{formatGHS(t.amount)}</td>
@@ -179,7 +192,7 @@ export default function Transactions() {
                       {t.userName || t.userEmail || t.user?.fullName || t.user?.email || '—'}
                     </td>
                     <td className="px-5 py-3.5 text-gray-500">{formatDateTime(itemDate(t))}</td>
-                  </tr>
+                  </AnimatedRow>
                 ))
               )}
             </tbody>

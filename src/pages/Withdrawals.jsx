@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import StatCard from '../components/StatCard';
 import StatusBadge from '../components/StatusBadge';
+import AnimatedRow from '../components/AnimatedRow';
+import { SkeletonTableRows } from '../components/Skeleton';
 import { getWithdrawals } from '../api/admin';
 import { extractArray, formatGHS, formatDateTime, itemDate } from '../utils/format';
 
@@ -21,7 +24,9 @@ export default function Withdrawals() {
         const { data } = await getWithdrawals();
         setWithdrawals(extractArray(data));
       } catch {
-        setError('Could not load withdrawals. Please try again.');
+        const msg = 'Could not load withdrawals. Please try again.';
+        setError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
@@ -52,9 +57,9 @@ export default function Withdrawals() {
   return (
     <Layout title="Withdrawals">
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Total Withdrawn" value={loading ? '—' : formatGHS(totalWithdrawn)} accent="#1A6B2E" />
-        <StatCard label="Pending Payout" value={loading ? '—' : formatGHS(pendingTotal)} accent="#B45309" />
-        <StatCard label="Requests Shown" value={loading ? '—' : filtered.length.toLocaleString()} accent="#0E7490" />
+        <StatCard loading={loading} label="Total Withdrawn" value={totalWithdrawn} gradient="green" formatter={(v) => formatGHS(v)} />
+        <StatCard loading={loading} label="Pending Payout" value={pendingTotal} gradient="gold" formatter={(v) => formatGHS(v)} />
+        <StatCard loading={loading} label="Requests Shown" value={filtered.length} gradient="cyan" />
       </div>
 
       <div className="mb-5 flex items-center gap-3">
@@ -92,11 +97,7 @@ export default function Withdrawals() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
-                    Loading withdrawals…
-                  </td>
-                </tr>
+                <SkeletonTableRows columns={7} />
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
@@ -104,8 +105,8 @@ export default function Withdrawals() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((w) => (
-                  <tr key={w.id} className="hover:bg-gray-50/60">
+                filtered.map((w, i) => (
+                  <AnimatedRow key={w.id} index={i} className="transition-colors duration-150 hover:bg-gray-50/80">
                     <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{w.id}</td>
                     <td className="px-5 py-3.5 text-gray-700">
                       {w.userName || w.user?.fullName || w.user?.email || '—'}
@@ -119,7 +120,7 @@ export default function Withdrawals() {
                       <StatusBadge status={w.status} />
                     </td>
                     <td className="px-5 py-3.5 text-gray-500">{formatDateTime(itemDate(w))}</td>
-                  </tr>
+                  </AnimatedRow>
                 ))
               )}
             </tbody>

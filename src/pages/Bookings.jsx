@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import StatusBadge from '../components/StatusBadge';
+import AnimatedRow from '../components/AnimatedRow';
+import { SkeletonTableRows } from '../components/Skeleton';
 import { getBookings } from '../api/admin';
 import { extractArray, formatGHS, formatDate } from '../utils/format';
 
@@ -20,7 +23,9 @@ export default function Bookings() {
         const { data } = await getBookings();
         setBookings(extractArray(data));
       } catch {
-        setError('Could not load bookings. Please try again.');
+        const msg = 'Could not load bookings. Please try again.';
+        setError(msg);
+        toast.error(msg);
       } finally {
         setLoading(false);
       }
@@ -71,11 +76,7 @@ export default function Bookings() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
-                    Loading bookings…
-                  </td>
-                </tr>
+                <SkeletonTableRows columns={8} />
               ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
@@ -83,8 +84,8 @@ export default function Bookings() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((b) => (
-                  <tr key={b.id} className="hover:bg-gray-50/60">
+                filtered.map((b, i) => (
+                  <AnimatedRow key={b.id} index={i} className="transition-colors duration-150 hover:bg-gray-50/80">
                     <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{b.id}</td>
                     <td className="px-5 py-3.5 font-medium text-gray-900">
                       {b.equipmentName || b.equipment?.name || '—'}
@@ -97,7 +98,7 @@ export default function Bookings() {
                     <td className="px-5 py-3.5">
                       <StatusBadge status={b.status} />
                     </td>
-                  </tr>
+                  </AnimatedRow>
                 ))
               )}
             </tbody>

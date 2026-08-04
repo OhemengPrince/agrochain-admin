@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StatusBadge from '../components/StatusBadge';
+import AnimatedRow from '../components/AnimatedRow';
+import { SkeletonTableRows } from '../components/Skeleton';
 import {
   getMarketplaceListings,
   deleteMarketplaceListing,
@@ -32,7 +35,9 @@ function useListingTab(key, loaders) {
       setItems(extractArray(data));
       setLoaded(true);
     } catch {
-      setError(`Could not load ${key}. Please try again.`);
+      const msg = `Could not load ${key}. Please try again.`;
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -73,9 +78,11 @@ export default function Listings() {
       await remover(item.id);
       state.setItems((prev) => prev.filter((i) => i.id !== item.id));
       setConfirmTarget(null);
+      toast.success('Listing removed.');
     } catch {
       // Keep dialog open with an inline note if the delete fails.
       setConfirmTarget((prev) => (prev ? { ...prev, failed: true } : prev));
+      toast.error('Could not remove this listing. Please try again.');
     } finally {
       setDeletingId(null);
     }
@@ -209,11 +216,7 @@ function ListingTable({ loading, items, emptyLabel, columns, renderRow, onDelete
           </thead>
           <tbody className="divide-y divide-gray-50">
             {loading ? (
-              <tr>
-                <td colSpan={colCount} className="px-5 py-8 text-center text-gray-400">
-                  Loading…
-                </td>
-              </tr>
+              <SkeletonTableRows columns={colCount} />
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={colCount} className="px-5 py-8 text-center text-gray-400">
@@ -221,8 +224,8 @@ function ListingTable({ loading, items, emptyLabel, columns, renderRow, onDelete
                 </td>
               </tr>
             ) : (
-              items.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50/60">
+              items.map((item, i) => (
+                <AnimatedRow key={item.id} index={i} className="transition-colors duration-150 hover:bg-gray-50/80">
                   {renderRow(item)}
                   <td className="px-5 py-3.5 text-right">
                     <button
@@ -233,7 +236,7 @@ function ListingTable({ loading, items, emptyLabel, columns, renderRow, onDelete
                       {deletingId === item.id ? '…' : 'Remove'}
                     </button>
                   </td>
-                </tr>
+                </AnimatedRow>
               ))
             )}
           </tbody>

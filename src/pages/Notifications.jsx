@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 import Layout from '../components/Layout';
 import { sendNotification } from '../api/admin';
 
@@ -9,12 +10,10 @@ export default function Notifications() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   const handleSend = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess('');
 
     if (!title.trim() || !message.trim()) {
       setError('Please fill in both the title and message.');
@@ -27,22 +26,24 @@ export default function Notifications() {
 
     setSending(true);
     try {
-      await sendNotification({
-        audience,
-        email: audience === 'USER' ? email.trim() : undefined,
-        title: title.trim(),
-        message: message.trim(),
-      });
-      setSuccess(
-        audience === 'ALL'
-          ? 'Announcement sent to all users.'
-          : `Notification sent to ${email.trim()}.`
+      await toast.promise(
+        sendNotification({
+          audience,
+          email: audience === 'USER' ? email.trim() : undefined,
+          title: title.trim(),
+          message: message.trim(),
+        }),
+        {
+          loading: audience === 'ALL' ? 'Sending announcement to all users…' : `Sending to ${email.trim()}…`,
+          success: audience === 'ALL' ? 'Announcement sent to all users.' : `Notification sent to ${email.trim()}.`,
+          error: 'Could not send the notification. Please try again.',
+        }
       );
       setTitle('');
       setMessage('');
       if (audience === 'USER') setEmail('');
     } catch {
-      setError('Could not send the notification. Please try again.');
+      // toast.promise already surfaced the error toast.
     } finally {
       setSending(false);
     }
@@ -60,11 +61,6 @@ export default function Notifications() {
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
-            </div>
-          )}
-          {success && (
-            <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-              {success}
             </div>
           )}
 
