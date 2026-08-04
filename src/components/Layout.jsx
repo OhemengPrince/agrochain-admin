@@ -1,51 +1,25 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import {
+  DashboardIcon,
+  UsersIcon,
+  TransactionsIcon,
+  WithdrawalsIcon,
+  BookingsIcon,
+  ListingsIcon,
+  NotificationsIcon,
+  SettingsIcon,
+} from './icons';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: DashboardIcon, end: true },
   { to: '/users', label: 'Users', icon: UsersIcon },
   { to: '/transactions', label: 'Transactions', icon: TransactionsIcon },
+  { to: '/withdrawals', label: 'Withdrawals', icon: WithdrawalsIcon },
+  { to: '/bookings', label: 'Bookings', icon: BookingsIcon },
   { to: '/listings', label: 'Listings', icon: ListingsIcon },
+  { to: '/notifications', label: 'Notifications', icon: NotificationsIcon },
 ];
-
-function DashboardIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
-      <rect x="3" y="3" width="7" height="9" rx="1.5" />
-      <rect x="14" y="3" width="7" height="5" rx="1.5" />
-      <rect x="14" y="12" width="7" height="9" rx="1.5" />
-      <rect x="3" y="16" width="7" height="5" rx="1.5" />
-    </svg>
-  );
-}
-
-function UsersIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
-      <circle cx="9" cy="8" r="3.2" />
-      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
-      <circle cx="17" cy="8" r="2.6" />
-      <path d="M15.5 14.2c2.6.4 4.5 2.7 4.5 5.8" />
-    </svg>
-  );
-}
-
-function TransactionsIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
-      <path d="M4 7h13l-3-3M20 17H7l3 3" />
-    </svg>
-  );
-}
-
-function ListingsIcon(props) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
-      <rect x="3.5" y="4" width="17" height="16" rx="2" />
-      <path d="M7.5 9h9M7.5 13h9M7.5 17h5" />
-    </svg>
-  );
-}
 
 function LogoMark({ className }) {
   return (
@@ -84,7 +58,7 @@ export default function Layout({ title, children }) {
           </div>
         </div>
 
-        <nav className="flex-1 space-y-1 px-3 py-2">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
           {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -102,20 +76,17 @@ export default function Layout({ title, children }) {
               {label}
             </NavLink>
           ))}
-        </nav>
 
-        <div className="border-t border-gray-100 px-3 py-4">
+          <div className="my-2 border-t border-gray-100" />
+
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <path d="M16 17l5-5-5-5M21 12H9" />
-            </svg>
-            Log Out
+            <SettingsIcon className="h-5 w-5 shrink-0" />
+            Settings
           </button>
-        </div>
+        </nav>
       </aside>
 
       {/* Main column */}

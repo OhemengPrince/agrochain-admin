@@ -1,36 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
-import api from '../api/axios';
 import Layout from '../components/Layout';
+import StatusBadge from '../components/StatusBadge';
+import ConfirmDialog from '../components/ConfirmDialog';
+import UserProfileModal from '../components/UserProfileModal';
+import { SearchIcon } from '../components/icons';
+import { getUsers, suspendUser, activateUser, deleteUser } from '../api/admin';
+import { extractArray, formatDate } from '../utils/format';
 
 const ROLE_OPTIONS = [
   { value: 'ALL', label: 'All Roles' },
   { value: 'FARMER', label: 'Farmer' },
   { value: 'EQUIPMENT_OWNER', label: 'Equipment Owner' },
   { value: 'BUYER', label: 'Buyer' },
-  { value: 'GENERAL', label: 'General' },
+  { value: 'ADMIN', label: 'Admin' },
 ];
 
-function extractArray(raw) {
-  if (Array.isArray(raw)) return raw;
-  if (raw?.content && Array.isArray(raw.content)) return raw.content;
-  if (raw?.data && Array.isArray(raw.data)) return raw.data;
-  if (raw?.items && Array.isArray(raw.items)) return raw.items;
-  return [];
-}
-
-function StatusBadge({ suspended }) {
-  return suspended ? (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
-      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-      Suspended
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
-      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-      Active
-    </span>
-  );
-}
+const ROLE_BADGE_LABELS = {
+  FARMER: 'Farmers',
+  EQUIPMENT_OWNER: 'Owners',
+  BUYER: 'Buyers',
+  ADMIN: 'Admins',
+  GENERAL: 'General',
+};
 
 export default function Users() {
   const [users, setUsers] = useState([]);
@@ -40,12 +31,14 @@ export default function Users() {
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [actioningId, setActioningId] = useState(null);
   const [actionError, setActionError] = useState('');
+  const [profileUser, setProfileUser] = useState(null);
+  const [confirmTarget, setConfirmTarget] = useState(null); // { user, action: 'suspend' | 'delete' }
 
   const loadUsers = async () => {
     setLoading(true);
     setError('');
     try {
-      const { data } = await api.get('/admin/users');
+      const { data } = await getUsers();
       setUsers(extractArray(data));
     } catch {
       setError('Could not load users. Please try again.');
@@ -57,6 +50,15 @@ export default function Users() {
   useEffect(() => {
     loadUsers();
   }, []);
+
+  const roleCounts = useMemo(() => {
+    const counts = {};
+    for (const u of users) {
+      const role = u.role || 'GENERAL';
+      counts[role] = (counts[role] || 0) + 1;
+    }
+    return counts;
+  }, [users]);
 
   const filteredUsers = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -76,29 +78,67 @@ export default function Users() {
     setActioningId(id);
     setActionError('');
     try {
-      await api.patch(`/admin/users/${id}/${action}`);
+      if (action === 'suspend') {
+        await suspendUser(id);
+      } else {
+        await activateUser(id);
+      }
       setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, suspended: !u.suspended } : u)));
     } catch {
       setActionError(`Could not ${action} this user. Please try again.`);
     } finally {
       setActioningId(null);
+      setConfirmTarget(null);
     }
+  };
+
+  const handleDelete = async (user) => {
+    setActioningId(user.id);
+    setActionError('');
+    try {
+      await deleteUser(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+    } catch {
+      setActionError('Could not delete this user. Please try again.');
+    } finally {
+      setActioningId(null);
+      setConfirmTarget(null);
+    }
+  };
+
+  const requestSuspendToggle = (user) => {
+    if (user.suspended) {
+      handleToggleSuspend(user);
+      return;
+    }
+    setConfirmTarget({ user, action: 'suspend' });
+  };
+
+  const requestDelete = (user) => setConfirmTarget({ user, action: 'delete' });
+
+  const confirmAction = () => {
+    if (!confirmTarget) return;
+    if (confirmTarget.action === 'suspend') handleToggleSuspend(confirmTarget.user);
+    else handleDelete(confirmTarget.user);
   };
 
   return (
     <Layout title="Users">
+      <div className="mb-5 flex flex-wrap gap-2">
+        {Object.entries(ROLE_BADGE_LABELS).map(([role, label]) => (
+          <span
+            key={role}
+            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600"
+          >
+            {label}
+            <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-primary">{roleCounts[role] || 0}</span>
+          </span>
+        ))}
+      </div>
+
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-sm">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="M21 21l-4.3-4.3" />
-          </svg>
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -138,21 +178,22 @@ export default function Users() {
                 <th className="px-5 py-3 font-semibold">Email</th>
                 <th className="px-5 py-3 font-semibold">Role</th>
                 <th className="px-5 py-3 font-semibold">Region</th>
+                <th className="px-5 py-3 font-semibold">Phone</th>
                 <th className="px-5 py-3 font-semibold">Status</th>
-                <th className="px-5 py-3 font-semibold">Joined</th>
+                <th className="px-5 py-3 font-semibold">Joined Date</th>
                 <th className="px-5 py-3 font-semibold text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
+                  <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
                     Loading users…
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-5 py-8 text-center text-gray-400">
+                  <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
                     No users match your search.
                   </td>
                 </tr>
@@ -167,24 +208,38 @@ export default function Users() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-gray-600">{u.region || '—'}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{u.phoneNumber || u.phone || '—'}</td>
                     <td className="px-5 py-3.5">
-                      <StatusBadge suspended={!!u.suspended} />
+                      <StatusBadge status={u.suspended ? 'SUSPENDED' : 'ACTIVE'} />
                     </td>
-                    <td className="px-5 py-3.5 text-gray-500">
-                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button
-                        onClick={() => handleToggleSuspend(u)}
-                        disabled={actioningId === u.id}
-                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                          u.suspended
-                            ? 'bg-primary/10 text-primary hover:bg-primary/20'
-                            : 'bg-red-50 text-red-600 hover:bg-red-100'
-                        }`}
-                      >
-                        {actioningId === u.id ? '…' : u.suspended ? 'Activate' : 'Suspend'}
-                      </button>
+                    <td className="px-5 py-3.5 text-gray-500">{formatDate(u.createdAt)}</td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => setProfileUser(u)}
+                          className="rounded-lg bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-700 transition hover:bg-gray-200"
+                        >
+                          View
+                        </button>
+                        <button
+                          onClick={() => requestSuspendToggle(u)}
+                          disabled={actioningId === u.id}
+                          className={`rounded-lg px-3 py-1.5 text-xs font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                            u.suspended
+                              ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                          }`}
+                        >
+                          {actioningId === u.id ? '…' : u.suspended ? 'Activate' : 'Suspend'}
+                        </button>
+                        <button
+                          onClick={() => requestDelete(u)}
+                          disabled={actioningId === u.id}
+                          className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -193,6 +248,27 @@ export default function Users() {
           </table>
         </div>
       </div>
+
+      <UserProfileModal user={profileUser} onClose={() => setProfileUser(null)} />
+
+      <ConfirmDialog
+        open={!!confirmTarget}
+        title={
+          confirmTarget?.action === 'delete'
+            ? `Delete ${confirmTarget.user.fullName || confirmTarget.user.email}?`
+            : `Suspend ${confirmTarget?.user?.fullName || confirmTarget?.user?.email}?`
+        }
+        message={
+          confirmTarget?.action === 'delete'
+            ? 'This permanently removes the user account. This cannot be undone.'
+            : 'The user will lose access to their account until reactivated.'
+        }
+        confirmLabel={confirmTarget?.action === 'delete' ? 'Delete User' : 'Suspend User'}
+        danger
+        loading={actioningId === confirmTarget?.user?.id}
+        onConfirm={confirmAction}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </Layout>
   );
 }

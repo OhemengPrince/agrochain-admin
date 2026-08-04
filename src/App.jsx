@@ -5,7 +5,10 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
 import Transactions from './pages/Transactions';
+import Withdrawals from './pages/Withdrawals';
+import Bookings from './pages/Bookings';
 import Listings from './pages/Listings';
+import Notifications from './pages/Notifications';
 
 export default function App() {
   return (
@@ -38,10 +41,34 @@ export default function App() {
             }
           />
           <Route
+            path="/withdrawals"
+            element={
+              <ProtectedRoute>
+                <Withdrawals />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bookings"
+            element={
+              <ProtectedRoute>
+                <Bookings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/listings"
             element={
               <ProtectedRoute>
                 <Listings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             }
           />
