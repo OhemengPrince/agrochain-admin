@@ -9,6 +9,10 @@ export default {
           dark: '#124D21',
           light: '#2E8B45',
         },
+        shell: {
+          DEFAULT: '#0C2A1B',
+          light: '#123825',
+        },
       },
     },
   },
